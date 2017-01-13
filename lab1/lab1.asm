@@ -32,8 +32,8 @@ section .text
 
 _start:
 	
-	fill_buffer X, bufferX, bufX_len
-	fill_buffer Y, bufferY, bufY_len
+	; fill_buffer X, bufferX, bufX_len
+	; fill_buffer Y, bufferY, bufY_len
 
 	pcall4 do_function, x1_index, x2_index, x3_index, x4_index
 	add esp, 16

@@ -26,7 +26,7 @@
 
 		mov eax, sys_exit
 		xor ebx, ebx
-		syscall 
+		int 0x80
 
 	%endmacro
 
@@ -45,12 +45,12 @@
 
 		mov ecx, %1
 		mov edx, %2
-		syscall
+		int 0x80
 
-		pop eax
-		pop ebx
-		pop ecx
 		pop edx
+		pop ecx
+		pop ebx
+		pop eax
 
 	%endmacro
 
@@ -90,20 +90,59 @@
 			jb %%set_buf
 			ret
 
-		pop eax
-		pop ecx
-		pop edx
-		pop esi
 		pop edi
+		pop esi
+		pop edx
+		pop ecx
+		pop eax
 
 	%endmacro
 
 
-	%macro invert 1
+	%macro invert 0-1
 
 		mov eax, $1
 		xor eax, 0xF
 		sub eax, 0xE
+
+	%endmacro
+
+
+	%macro pcall1 2
+
+		push %2
+		call %1
+		add esp, 4
+
+	%endmacro
+
+	%macro pcall2 3
+
+		push %3
+		push %2
+		call %1
+		add esp, 8
+
+	%endmacro
+
+	%macro pcall3 4
+
+		push %4
+		push %3
+		push %2
+		call %1
+		add esp, 12
+
+	%endmacro
+
+	%macro pcall4 5
+
+		push %5
+		push %4
+		push %3
+		push %2
+		call %1
+		add esp, 16
 
 	%endmacro
 
