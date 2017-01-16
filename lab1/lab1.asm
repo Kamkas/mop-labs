@@ -32,14 +32,24 @@ section .text
 
 _start:
 	
-	; fill_buffer X, bufferX, bufX_len
-	; fill_buffer Y, bufferY, bufY_len
+	fill_buffer X, bufferX, bufX_len
+	fill_buffer Y, bufferY, bufY_len
 
 	pcall4 do_function, x1_index, x2_index, x3_index, x4_index
-	add esp, 16
 
 	cmp eax, true
-	je 
+	je fc_func
+
+	cmp eax, false
+	je sc_func
+
+	pcall4 from_hex_to_bin, eax, bufferX, bufX_len
+
+	call z_func
+
+	exit
+
+
 
 ; result sores in eax
 do_function:
@@ -80,11 +90,9 @@ fc_func:
 	; call from_bin_to_hex
 
 	pcall2 from_bin_to_hex, bufferY, bufY_len
-	add esp, 8
 	push eax
 
 	pcall2 from_bin_to_hex, bufferX, bufX_len
-	add esp, 8
 
 	pop edx
 	sal eax, 3
@@ -105,11 +113,9 @@ sc_func:
 	sub esp, 8
 
 	pcall2 from_bin_to_hex, bufferY, bufY_len
-	add esp, 8
 	push eax
 
 	pcall2 from_bin_to_hex, bufferX, bufX_len
-	add esp, 8
 	
 	pop edx
 	add eax, edx
