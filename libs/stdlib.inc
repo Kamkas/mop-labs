@@ -48,6 +48,8 @@
 	%define local(n)	ebp - (4 * n)
 
 	; macros for custom programs
+	%define true		1
+	%define false		0
 	%define nl			0xA
 	%define get_index(array, i, j)	(array + i * j)
 	%define sdots		0xB0
@@ -140,39 +142,43 @@
 
 	; fill buffer(src, dest, length)
 	%macro fill_buffer 3
-		push eax
-		push ecx
-		push edx
-		push esi
-		push edi
-
-		mov eax, 0x30
 
 		mov esi, %1
 		mov edi, %2
 		xor ecx, ecx
 
-		call %%set_buf
+		jmp %%set_buf
 
 		%%set_buf:
-			mov edx, [esi + ecx]	; mov char value to edx
-			sub edx, eax			; sub and get 0 or 1
-			mov [edi + ecx], dl		; mov edx value to buffer
+			mov dl, byte [esi + ecx]	; mov char value to edx
+			sub dl, 0x30			; sub and get 0 or 1
+			mov byte [edi + ecx], dl		; mov edx value to buffer
 			inc ecx					; increase by 1
 			cmp ecx, %3 			; if ecx below X_len 
 			jb %%set_buf
-			ret
 
-		pop edi
-		pop esi
-		pop edx
-		pop ecx
-		pop eax
 	%endmacro
 
+	%macro buffer_to_acsii 2
+
+		mov esi, %1
+		xor ecx, ecx
+		xor edx, edx
+
+		jmp %%for
+
+		%%for:
+			mov dl, byte [esi + ecx]
+			add dl, 0x30
+			mov byte [esi + ecx], dl
+			inc ecx
+			cmp ecx, %2
+			jb %%for
+
+	%endmacro
 
 	%macro invert 0-1
-		mov eax, $1
+		mov eax, %1
 		xor eax, 0xF
 		sub eax, 0xE
 	%endmacro

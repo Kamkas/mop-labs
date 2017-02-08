@@ -1,6 +1,6 @@
 section .data
 
-	X: 			db 		"00000110101111011100" ; 27606
+	X: 			db 		"00000110101111011111" ; 27615
 	X_len:		equ		$-X
 	Y: 			db 		"10100111101110010101" ; 686997
 	Y_len:		equ		$-Y
@@ -12,7 +12,7 @@ section .bss
 	bufferY: 	resb	Y_len
 	bufY_len:	equ		$-bufferY
 	
-	bufferOvflw:		resb	8
+	bufferOvflw:		resd	8
 	bufOvflw_len:		equ		$-bufferOvflw
 
 	x1_index:			equ		bufferX + bufX_len - 1
@@ -42,35 +42,51 @@ _start:
 
 	cmp eax, false
 	je sc_func
+	
+	.back:
 
-	pcall4 from_hex_to_bin, eax, bufferX, bufX_len
+	pcall3 from_hex_to_bin, eax, bufferX, bufX_len
 
-	call z_func
+	jmp z_func
+	.back_z:
+
+	buffer_to_acsii bufferX, bufX_len
+
+	sys_io bufferX, bufX_len, sys_write, stdout
 
 	exit
 
 
 
-; result sores in eax
+; result stores in eax
 do_function:
 
 	push ebp
 	mov ebp, esp
 	sub esp, 16
 
+	xor eax, eax
+	xor ebx, ebx
+
 	; !(x1+x2)
-	mov eax, [arg(1)]
-	or eax, [arg(2)]
+	mov esi, [arg(1)]
+	mov al, byte [esi]
+	mov esi, [arg(2)]
+	mov bl, byte [esi]
+	or al, bl
 	invert eax
-	push eax
+	push ax
 
-	; x3*x4
-	mov eax, [arg(3)]
-	and eax, [arg(4)]
+	; ; x3*x4
+	mov esi, [arg(3)]
+	mov al, byte [esi]
+	mov esi, [arg(4)]
+	mov bl, byte [esi]
+	and al, bl
 
-	; $1 + $2
-	pop ebx
-	or eax, ebx
+	; ; $1 + $2
+	pop bx
+	or al, bl
 
 	mov esp, ebp
 	pop ebp
@@ -81,13 +97,6 @@ do_function:
 ; Y - X * 8
 ; result sores in eax
 fc_func:
-	push ebp
-	mov ebp, esp
-	sub esp, 8
-
-	; xor eax, eax
-	; mov ecx, bufY_len
-	; call from_bin_to_hex
 
 	pcall2 from_bin_to_hex, bufferY, bufY_len
 	push eax
@@ -100,18 +109,13 @@ fc_func:
 
 	add eax, edx
 
-	mov esp, ebp
-	pop ebp
-	ret
+	jmp _start.back
 
 
 ; if false
 ; X * 8 + Y * 8
 sc_func:
-	push ebp
-	mov ebp, esp
-	sub esp, 8
-
+	
 	pcall2 from_bin_to_hex, bufferY, bufY_len
 	push eax
 
@@ -121,10 +125,7 @@ sc_func:
 	add eax, edx
 	sal eax, 3
 
-	mov esp, ebp
-	pop ebp
-	ret
-
+	jmp _start.back
 
 
 from_bin_to_hex:
@@ -133,32 +134,40 @@ from_bin_to_hex:
 	mov ebp, esp
 	sub esp, 8
 
-	mov esi, [arg(1) + arg(2)]
-	mov ecx, arg(2)
+	mov esi, [arg(1)]
+	mov ecx, [arg(2)]
+	sub ecx, 0x1
 
 	xor eax, eax
+	xor ebx, ebx
+	xor edx, edx
 	mov ebx, 0x1
-	mov eax, [esi + ecx]
+	mov al, byte [esi + ecx]
 
 	dec ecx
 
 	.cycle:
-		
-		mov edx, [esi + ecx]
-		add ebx, ebx
-		cmp edx, 0x1
+		mov dl, byte [esi + ecx]
+		sal ebx, 1
+		cmp dl, byte 0x1
 		je ..@pow2
+		
+		cmp dl, byte 0x1
+		jne ..@continue
 
+		..@pow2:
+			add eax, ebx
+			jmp ..@continue
+
+		..@continue:
 		dec ecx
 
 		cmp ecx, 0x0
-		jae .cycle
-		ret
+		jge .cycle
+		jmp .end
 
-		..@pow2:
-			add eax, ebx		
-			ret
 
+	.end:
 	mov esp, ebp
 	pop ebp
 	ret
@@ -170,19 +179,14 @@ from_hex_to_bin:
 	mov ebp, esp
 	sub esp, 16
 
-	push eax
-	push ecx
-	push edx
-	push edi
-
 	mov eax, [arg(1)]
 	mov edi, [arg(2)]
 	mov ecx, [arg(3)]
+	dec ecx
 
 	.cycle:
-
-		test eax, eax
-		jpo ..@odd
+		test eax, 0x1
+		jnz ..@odd
 
 		mov dl, 0x0
 		jmp ..@r0
@@ -192,20 +196,12 @@ from_hex_to_bin:
 			jmp ..@r0
 
 		..@r0:
-			mov [edi + ecx], dl
-			dec ecx
+		mov byte [edi + ecx], dl
+		dec ecx
 
-			sar eax, 1
-			cmp eax, 0x0
-			ja .cycle
-			ret
-
-		ret
-
-	pop edi
-	pop edx
-	pop ecx
-	pop eax
+		sar eax, 1
+		cmp eax, 0x0
+		ja .cycle
 
 	mov esp, ebp
 	pop ebp
@@ -213,24 +209,23 @@ from_hex_to_bin:
 
 
 z_func:
-	enter 16, 0
 
 	; z19 &= z16
-	mov eax, [z19_index]
-	mov edx, [z16_index]
-	and eax, edx
-	mov [z19_index], al
+	mov al, byte [z19_index]
+	mov dl, byte [z16_index]
+	and al, dl
+	mov byte [z19_index], al
 
 	; z15 |= z16
-	mov eax, [z15_index]
-	mov edx, [z16_index]
-	or eax, edx
-	mov [z15_index], al
+	mov al, byte [z15_index]
+	; mov dl, byte [z16_index]
+	or al, dl
+	mov byte [z15_index], al
 
 	; z11 = !z10
-	mov eax, [z10_index]
+	xor eax, eax
+	mov al, byte [z10_index]
 	invert eax
-	mov [z11_index], al
+	mov byte [z11_index], al
 
-	leave
-	ret
+	jmp _start.back_z
