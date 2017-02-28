@@ -1,8 +1,8 @@
 section .data
 
-	X: 			db 		"00000110101111011111" ; 27615
+	X: 			db 		"11111111111111111111" ; 27615
 	X_len:		equ		$-X
-	Y: 			db 		"10100111101110010101" ; 686997
+	Y: 			db 		"11111111111111111111" ; 686997
 	Y_len:		equ		$-Y
 
 section .bss
@@ -12,7 +12,7 @@ section .bss
 	bufferY: 	resb	Y_len
 	bufY_len:	equ		$-bufferY
 	
-	bufferOvflw:		resd	8
+	bufferOvflw:		resb	8
 	bufOvflw_len:		equ		$-bufferOvflw
 
 	x1_index:			equ		bufferX + bufX_len - 1
@@ -105,10 +105,15 @@ fc_func:
 
 	pop edx
 	sal eax, 3
-	neg eax
 
-	add eax, edx
+	cmp eax, edx
+	ja .negtive
 
+	sub edx, eax
+	mov eax, edx
+	
+	.negtive:
+		sub eax, edx
 	jmp _start.back
 
 
@@ -173,6 +178,8 @@ from_bin_to_hex:
 	ret
 
 
+
+; TODO: change to shr, and check CF
 from_hex_to_bin:
 
 	push ebp
@@ -201,7 +208,7 @@ from_hex_to_bin:
 
 		sar eax, 1
 		cmp eax, 0x0
-		ja .cycle
+		jnz .cycle
 
 	mov esp, ebp
 	pop ebp

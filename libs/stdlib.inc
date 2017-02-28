@@ -16,6 +16,7 @@
 	%define O_RDONLY		0
 	%define O_WRONLY		1
 	%define O_RDWR			2
+	%define O_APPEND		2001q
 
 	struc STAT
 	    .st_dev:        resd 1
@@ -51,7 +52,8 @@
 	%define true		1
 	%define false		0
 	%define nl			0xA
-	%define get_index(array, i, j)	(array + i * j)
+	%define spc			0x20
+	; %define get_index(array, i, j, len)	(array + len * i + j)
 	%define sdots		0xB0
 	%define mdots		0xB1
 	%define ldots		0xB2
@@ -62,6 +64,12 @@
 	%macro exit 0
 		mov eax, sys_exit
 		xor ebx, ebx
+		int 0x80
+	%endmacro
+
+	%macro error 1
+		mov ebx, %1
+		mov eax, sys_exit
 		int 0x80
 	%endmacro
 
@@ -77,67 +85,69 @@
 	%endmacro
 
 	%macro o_console 2
-		sys_io $1, $2, sys_write, stdout
+		sys_io %1, %2, sys_write, stdout
 	%endmacro
 
 	%macro i_console 2
-		sys_io $1, $2, sys_read, stdin
+		sys_io %1, %2, sys_read, stdin
 	%endmacro
 
-	%macro open_file 2-4
-		sys_io $2,0x0,sys_open,$1
-		cmp eax, 0x0
-		je %%error
-		%%error:
-			exit
+	%macro open_file 2
+		sys_io 0,%2,sys_open,%1
 	%endmacro
 
-	%macro read_file 2-4
-		sys_io $1,$2,sys_read,$3
+	%macro read_file 3
+		sys_io %1,%2,sys_read,%3
+	%endmacro
+
+	%macro write_file 3
+		sys_io %1,%2,sys_write,%3
+	%endmacro
+
+	%macro sync_file 1
+		mov ebx, %1
+		mov eax, 36
+		int 0x80
 	%endmacro
 
 	%macro close_file 1
-		mov ebx, $1
+		mov ebx, %1
 		mov eax, sys_close
 		int 0x80
 	%endmacro
 
 	%macro free_memory 1
-		mov ebx, $1
-		mov eax, sys_close
+		mov ebx, %1
+		mov eax, sys_brk
 		int 0x80
 	%endmacro
 
 	%macro newstat 2
-		mov ebx, $1
-		mov ecx, $2
+		mov ebx, %1
+		mov ecx, %2
 		mov eax, sys_newstat
 		int 0x80
 	%endmacro
 
 	%macro brk 1
-		mov ebx, $1
+		mov ebx, %1
 		mov eax, sys_brk
 		int 0x80		
 	%endmacro
 
-	%macro read_file_to_buffer 2-6
-		newstat $1,$2
-		brk 0x0
+	%macro read_file_to_buffer 4
+		open_file %1, O_RDONLY
+		mov [%2], eax
+		read_file %3,%4,[%2]
+		close_file [%2]
+	%endmacro
 
-		mov [$3], eax
-		mov [$4], eax
-		mov ebx, eax
-
-		add ebx, [$2 + STAT.st_size]
-		brk ebx
-
-		open_file $1,$3
-		xchg eax, esi
-
-		read_file [$4], dword [$2 + STAT.st_size], esi
-		close_file esi
-		free_memory [$3]
+	%macro write_file_from_buffer 4
+		open_file %1, O_APPEND
+		mov [%2], eax
+		write_file %3,%4,[%2]
+		sync_file [%2]
+		close_file [%2]
 	%endmacro
 
 	; fill buffer(src, dest, length)
@@ -145,7 +155,9 @@
 
 		mov esi, %1
 		mov edi, %2
+		mov ebx, %3
 		xor ecx, ecx
+
 
 		jmp %%set_buf
 
@@ -154,33 +166,47 @@
 			sub dl, 0x30			; sub and get 0 or 1
 			mov byte [edi + ecx], dl		; mov edx value to buffer
 			inc ecx					; increase by 1
-			cmp ecx, %3 			; if ecx below X_len 
-			jb %%set_buf
+			cmp ecx, ebx 			; if ecx below X_len 
+			jbe %%set_buf
 
 	%endmacro
 
 	%macro buffer_to_acsii 2
 
 		mov esi, %1
+		mov ebx, %2
 		xor ecx, ecx
-		xor edx, edx
 
 		jmp %%for
 
 		%%for:
-			mov dl, byte [esi + ecx]
-			add dl, 0x30
-			mov byte [esi + ecx], dl
+			; mov dl, byte [esi + ecx]
+			; add dl, 0x30
+			; mov byte [esi + ecx], dl
+			add byte [esi + ecx], 0x30
+			inc ecx
+			cmp ecx, ebx
+			jbe %%for
+
+	%endmacro
+
+	%macro buffer_to_char 3
+		mov esi, %1
+		xor ecx, ecx
+
+		jmp %%for
+
+		%%for:
+			mov byte [esi + ecx], %3
 			inc ecx
 			cmp ecx, %2
-			jb %%for
+			jbe %%for
 
 	%endmacro
 
 	%macro invert 0-1
 		mov eax, %1
-		xor eax, 0xF
-		sub eax, 0xE
+		xor eax, 1
 	%endmacro
 
 	%macro pcall1 2
@@ -214,27 +240,35 @@
 	%endmacro
 
 	%macro allocate_array2d_byte 3
-		$1	resb	$2 * $3
+		%1	resb	%2 * %3
 	%endmacro
 
 	%macro allocate_array_byte 2
-		$1	resb	$2
+		%1	resb	%2
 	%endmacro
 
 	%macro isdigit 1
 		xor eax, eax
-		cmp $1, 0x0
-		jae %%ns
+		xor edx, edx
+		mov dl, %1
+		sub dl, 0x30
+		cmp dl, 9
+		jbe %%ns
 		
+		jmp %%exit
+
 		%%ns:
-			cmp $1, 0x9
-			jbe %%ls
-			ret
+			cmp dl, 0
+			jae %%ls
+			jmp %%exit
 
 		%%ls:
-			mov eax, 0x1
-			ret
+			mov eax, true
+		
+		%%exit:
 
 	%endmacro
+
+
 
 %endif
