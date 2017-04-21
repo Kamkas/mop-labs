@@ -1,18 +1,20 @@
 section .data
-	refl_msg			db		"Reflective: ",0,nl
+	refl_msg			db		"Reflective: "
 	refl_msg_len		equ		$-refl_msg
 
-	anti_refl_msg		db		"Anti-reflective: ",0,nl
+	anti_refl_msg		db		"Anti-reflective: "
 	anti_refl_msg_len 	equ		$-anti_refl_msg
 	
-	simm_msg			db		"Simmetric: ",0,nl
+	simm_msg			db		"Simmetric: "
 	simm_msg_len		equ		$-simm_msg
 	
-	asimm_msg			db		"A-simmetric: ",0,nl
+	asimm_msg			db		"A-simmetric: "
 	asimm_msg_len		equ		$-asimm_msg
 	
-	anti_simm_msg		db		"Anti-simmetric: ",0,nl
+	anti_simm_msg		db		"Anti-simmetric: "
 	anti_simm_msg_len	equ		$-anti_simm_msg
+
+	newline				db 		nl
 
 	in_filename			db 		"input",0
 
@@ -41,11 +43,37 @@ _start:
 	pcall1 get_rows_and_cols, buffer
 
 	movzx ecx, byte [rows]
-
 	pcall2 check_for_refl, buffer, ecx
 	
-	exit
+	movzx ecx, byte [rows]
+	pcall3 check_for_simm, buffer, ecx, ecx
 
+	movzx ecx, byte [rows]
+	pcall3 check_for_antisimm, buffer, ecx, ecx
+
+	call check_for_asimm
+
+	o_console refl_msg, refl_msg_len
+	o_console refl, 1
+	o_console newline, 1
+
+	o_console anti_refl_msg, anti_refl_msg_len
+	o_console anti_refl, 1
+	o_console newline, 1
+
+	o_console simm_msg, simm_msg_len
+	o_console simm, 1
+	o_console newline, 1
+
+	o_console anti_simm_msg, anti_simm_msg_len
+	o_console anti_simm, 1
+	o_console newline, 1
+	
+	o_console asimm_msg, asimm_msg_len
+	o_console asimm, 1
+	o_console newline, 1
+
+	exit
 
 get_rows_and_cols:
 	push ebp
@@ -68,49 +96,7 @@ get_rows_and_cols:
 			mov byte [rows], cl
 			mov byte [cols], cl
 			xor ecx, ecx
-			; jmp .cycle_cols
 			jmp .exit
-
-	; .cycle_cols:
-	; 	push eax
-	; 	push ecx
-		
-	; 	mov eax, ecx
-		
-	; 	sal ecx, 6
-	; 	sal eax, 4
-	; 	add ecx, eax
-
-	; 	mov dl, byte [esi + ecx]
-
-	; 	pop ecx
-	; 	pop eax
-
-	; 	cmp dl, 0
-	; 	je ..@save_cols
-
-	; 	inc ecx
-	; 	cmp ecx, 80
-	; 	jb .cycle_cols
-
-	; 	..@save_cols:
-	; 		mov byte [cols], cl
-	; 		jmp .check
-
-
-	; .check:
-		; push eax
-		; push ebx
-		; sub byte [cols], 1
-		; movzx eax, byte [rows]
-		; cmp al, byte [cols] 
-		; pop ebx
-		; pop eax
-		; jne .error
-		; jmp .exit
-
-	; .error:
-		; exit
 
 	.exit:
 	mov esp, ebp
@@ -194,82 +180,53 @@ check_for_simm:
 	mov [local(1)], eax
 	mov eax, [arg(3)]
 	mov [local(2)], eax
+	mov [local(3)], eax
+	add dword [local(3)], 1
+	; inc eax
 
-	mov eax, 1
+	xor eax, eax
 	xor ebx, ebx
-	; xor ecx, ecx
+	xor ecx, ecx
+	inc ecx
 
-	.for_rows:
-		xor ecx, ecx
+	.cycle:
+		add eax, [local(3)]
+		mov dl, byte [esi + ecx]
+		and dl, byte [esi + eax]
+		cmp dl, 0x31
+		je ..@stepn
 
-		..@for_cols:
+		mov dl, byte [esi + ecx]
+		xor dl, byte [esi + eax]
+		cmp dl, 1
+		jne ..@stepn
+		
+		jmp .break
+		
+		..@stepn:
+			inc ecx
+			cmp ecx, [local(2)]
+			jb .cycle
+			jmp ..@next_step
 
-			cmp ecx, dword [local(1)]
-			jnb ..@inc_cols
-
-			cmp ecx, ebx
-			je ..@contiunue
-
-			push ecx
-			push ebx
-			push ebx
-
-			mov ebx, ecx
-			sal ebx, 6
-			sal ecx, 4
-			add ecx, ebx
-
-			pop ebx
-			add ebx, ecx
-	
-			mov dl, byte [esi + ebx]
-	
-			pop ebx		
-			pop ecx
-
-			; mov dl, byte [get_index(esi, ecx, ebx, 80)]
-			cmp dl, 1
-			je ..@next
-
-			cmp dl, 0
-			jz ..@contiunue
-
-			..@next:
-
-				push ecx
-				push ebx
-				push ecx
-
-				mov ebx, ecx
-				sal ebx, 6
-				sal ecx, 4
-				add ebx, ecx
-
-				pop ecx
-				add ebx, ecx
-	
-				and dl, byte [esi + ebx]
-	
-				pop ebx		
-				pop ecx
-
-				; and dl, byte [get_index(esi, ebx, ecx, 80)]
-				cmp dl, 1
-				je ..@contiunue
-
-				xor eax, eax
-				cmp dl, 0
-				je .exit
-
-
-			..@contiunue:
-				inc ecx
-				jmp ..@for_cols	
-
-		..@inc_cols:
+		..@next_step:
 			inc ebx
-			cmp ebx, dword [local(2)]
-			jb .for_rows
+			sub dword [local(2)], 1
+			xor ecx, ecx
+			inc ecx
+			add esi, [local(1)]
+			add esi, 2
+			xor eax, eax
+
+			cmp ebx, [local(1)]
+			jb .cycle
+
+			mov byte [simm], 0x31
+			jmp .exit
+
+
+	.break:
+	mov byte [simm], 0x30
 
 	.exit:
 	mov esp, ebp
@@ -278,106 +235,76 @@ check_for_simm:
 
 
 check_for_antisimm:
-	
+
 	push ebp
 	mov ebp, esp
-	sub esp, 8
+	sub esp, 12
 	
 	mov esi, [arg(1)]
 	mov eax, [arg(2)]
 	mov [local(1)], eax
 	mov eax, [arg(3)]
 	mov [local(2)], eax
+	mov [local(3)], eax
+	add dword [local(3)], 1
+	; inc eax
 
-	mov eax, 1
+	xor eax, eax
 	xor ebx, ebx
+	xor ecx, ecx
+	inc ecx
 
-	.for_rows:
-		xor ecx, ecx
+	.cycle:
+		add eax, [local(3)]
+		mov dl, byte [esi + ecx]
+		xor dl, byte [esi + eax]
+		cmp dl, 1
+		je ..@stepn1
 
-		..@for_cols1:
+		mov dl, byte [esi + ecx]
+		and dl, byte [esi + eax]
+		cmp dl, 0x31
+		jne ..@stepn1
+		
+		jmp .break
+		
+		..@stepn1:
+			inc ecx
+			cmp ecx, [local(2)]
+			jb .cycle
+			jmp ..@next_step1
 
-			cmp ecx, dword [local(1)]
-			jnb ..@inc_cols1
-
-			cmp ecx, ebx
-			je ..@contiunue1
-
-			push ecx
-			push ebx
-			push ebx
-
-			mov ebx, ecx
-			sal ebx, 6
-			sal ecx, 4
-			add ecx, ebx
-
-			pop ebx
-			add ebx, ecx
-	
-			mov dl, byte [esi + ebx]
-	
-			pop ebx		
-			pop ecx
-
-			; mov dl, byte [get_index(esi, ecx, ebx, 80)]
-			cmp dl, 1
-			je ..@next1
-
-			cmp dl, 0
-			jz ..@contiunue1
-
-			..@next1:
-				push ecx
-				push ebx
-				push ecx
-
-				mov ebx, ecx
-				sal ebx, 6
-				sal ecx, 4
-				add ebx, ecx
-
-				pop ecx
-				add ebx, ecx
-	
-				xor dl, byte [esi + ebx]
-	
-				pop ebx		
-				pop ecx
-
-				; xor dl, byte [get_index(esi, ebx, ecx, 80)]
-				cmp dl, 1
-				je ..@contiunue1
-
-				xor eax, eax
-				cmp dl, 0
-				je .exit
-
-
-			..@contiunue1:
-				inc ecx
-				jmp ..@for_cols1	
-
-		..@inc_cols1:
+		..@next_step1:
 			inc ebx
-			cmp ebx, dword [local(2)]
-			jb .for_rows
+			sub dword [local(2)], 1
+			xor ecx, ecx
+			inc ecx
+			add esi, [local(1)]
+			add esi, 2
+			xor eax, eax
 
+			cmp ebx, [local(1)]
+			jb .cycle
+
+			mov byte [anti_simm], 0x31
+			jmp .exit
+
+
+	.break:
+	mov byte [anti_simm], 0x30
 
 	.exit:
-		mov esp, ebp
-		pop ebp
-		ret
-
+	mov esp, ebp
+	pop ebp
+	ret
 
 check_for_asimm:
 	push ebp
 	mov ebp, esp
-	sub esp, 8
 
 	mov dl, byte [anti_refl]
 	and dl, byte [anti_simm]
-	mov dl, byte [asimm]
+	mov byte [asimm], dl
 
 	mov esp, ebp
 	pop ebp

@@ -1,19 +1,39 @@
 section .data
 
+	newline:	db		nl
+	
 	X: 			db 		"11111111111111111111" ; 27615
 	X_len:		equ		$-X
 	Y: 			db 		"11111111111111111111" ; 686997
 	Y_len:		equ		$-Y
 
+	msg1:			db		"Enter 1st(X) binary number (20 char) >> "
+	msg1_len		equ		$-msg1
+
+	msg2:			db		"Enter 2nd(Y) binary number (20 char) >> "
+	msg2_len		equ		$-msg2
+
+	ovr_msg:		db		"Overflow bits(from 20 to 28 digits)",nl
+	ovr_msg_len		equ		$-ovr_msg
+
+	result_msg:		db		"Result bits(20..0 digits)",nl
+	result_msg_len	equ		$-result_msg
+
+	bool_func:		db		"Result of F(x1, x2, x3, x4) >> "
+	bool_func_len	equ		$-bool_func	
+
 section .bss
 
-	bufferX: 	resb	X_len
-	bufX_len:	equ		$-bufferX
-	bufferY: 	resb	Y_len
-	bufY_len:	equ		$-bufferY
-	
 	bufferOvflw:		resb	8
 	bufOvflw_len:		equ		$-bufferOvflw
+
+	bufferX: 	resb	20
+	bufX_len:	equ		$-bufferX
+	
+	bufferY: 	resb	20
+	bufY_len:	equ		$-bufferY
+
+	allocate_array_byte bul_f, 1
 
 	x1_index:			equ		bufferX + bufX_len - 1
 	x2_index:			equ		bufferX + bufX_len - 2
@@ -29,13 +49,25 @@ section .bss
 section .text
 	global _start
 
-
 _start:
 	
+	o_console msg1, msg1_len
+	o_console X, X_len
+	o_console newline, 1
+	; i_console bufferX, bufX_len
 	fill_buffer X, bufferX, bufX_len
+
+
+	o_console msg2, msg2_len
+	o_console Y, Y_len
+	o_console newline, 1
+	; i_console bufferY, bufY_len
 	fill_buffer Y, bufferY, bufY_len
 
+
 	pcall4 do_function, x1_index, x2_index, x3_index, x4_index
+
+	mov [bul_f], al
 
 	cmp eax, true
 	je fc_func
@@ -47,12 +79,25 @@ _start:
 
 	pcall3 from_hex_to_bin, eax, bufferX, bufX_len
 
-	jmp z_func
+	; jmp z_func
 	.back_z:
 
+	buffer_to_acsii bufferOvflw, bufOvflw_len
 	buffer_to_acsii bufferX, bufX_len
+	buffer_to_acsii bul_f, 1
 
-	sys_io bufferX, bufX_len, sys_write, stdout
+	o_console bool_func, bool_func_len
+	o_console bul_f, 1
+	o_console newline, 1
+
+	o_console ovr_msg, ovr_msg_len
+	o_console bufferOvflw, bufOvflw_len
+	o_console newline, 1
+	
+	o_console result_msg, result_msg_len
+	o_console bufferX, bufX_len
+	o_console newline, 1
+
 
 	exit
 
@@ -194,6 +239,13 @@ from_hex_to_bin:
 	.cycle:
 		test eax, 0x1
 		jnz ..@odd
+
+		; cmp ecx, -1
+		; je ..@set_overflow
+
+		; ..@set_overflow:
+		; 	mov edi, bufferOvflw
+		; 	mov ecx, bufOvflw_len
 
 		mov dl, 0x0
 		jmp ..@r0
