@@ -1,5 +1,5 @@
 NAME = lab3
-BASE_DIR = /home/kamkas/Yandex.Disk/google-drive-mirror/ws/mop/mop-labs/
+BASE_DIR = $(PROJ_DIR)
 PROJ_DIR = $(BASE_DIR)$(NAME)/
 LIBS_DIR = $(BASE_DIR)libs/
 TEMP_DIR = $(PROJ_DIR)debug/
