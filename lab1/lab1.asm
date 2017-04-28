@@ -2,9 +2,9 @@ section .data
 
 	newline:	db		nl
 	
-	X: 			db 		"11111111111111111011" ; 27615
+	X: 			db 		"00001011010000010111" ; 46103
 	X_len:		equ		$-X
-	Y: 			db 		"11111111111111111111" ; 686997
+	Y: 			db 		"10101111100101110110" ; 719222
 	Y_len:		equ		$-Y
 
 	msg1:			db		"Enter 1st(X) binary number (20 char) >> "
@@ -34,28 +34,16 @@ section .data
 	final_res_msg:	db		"Final result ->  "
 	final_res_msg_len 		equ		$-final_res_msg
 
-	fst_msg:		db		"Y-X*8", nl
+	fst_msg:		db		"Z = Y-X*8", nl
 	fst_msg_len		equ		$-fst_msg
 
-	scnd_msg:		db		"X*8+Y*8", nl
+	scnd_msg:		db		"Z = X*8+Y*8", nl
 	scnd_msg_len	equ		$-scnd_msg
 
-	x1_msg			db		"x1 = "
-	x1_msg_len		equ 	$-x1_msg
-	x2_msg			db		"x2 = "
-	x2_msg_len		equ 	$-x2_msg
-	x3_msg			db		"x3 = "
-	x3_msg_len		equ 	$-x3_msg
-	x4_msg			db		"x4 = "
-	x4_msg_len		equ 	$-x4_msg
+	bin_func_msg			db		"F_27 = !x1x3|!x1x2|x1x3x4|!x1x2x3|!x1!x2", nl
+	bin_func_msg_len		equ 	$-bin_func_msg
 
-	r1_msg			db		"!(x1+x2) = "
-	r1_msg_len		equ 	$-r1_msg
-
-	r2_msg			db		"(x3*x4) = "
-	r2_msg_len		equ 	$-r2_msg
-
-	F_msg			db		"F = "
+	F_msg			db		"Z = "
 	F_msg_len		equ 	$-F_msg
 
 section .bss
@@ -101,10 +89,15 @@ _start:
 	; i_console bufferY, bufY_len
 	fill_buffer Y, bufferY, bufY_len
 
-
+	o_console bin_func_msg, bin_func_msg_len
 	pcall4 do_function, x1_index, x2_index, x3_index, x4_index
 
-	mov [bul_f], al
+	mov byte [bul_f], al
+	add byte [bul_f], 0x30
+
+	o_console bool_func, bool_func_len
+	o_console bul_f, 1
+	o_console newline, 1
 
 	cmp eax, true
 	je fc_func
@@ -116,21 +109,12 @@ _start:
 
 	pcall3 from_hex_to_bin, eax, bufferX, bufX_len
 
-	nop
-	nop
-	nop
-
-
 	buffer_to_acsii bufferOvflw, 7
 	; buffer_to_acsii bufferX, bufX_len
 	buffer_to_acsii bul_f, 1
 	
 	jmp z_func
 	.back_z:
-
-	o_console bool_func, bool_func_len
-	o_console bul_f, 1
-	o_console newline, 1
 
 	o_console ovr_msg, ovr_msg_len
 	o_console bufferOvflw, bufOvflw_len
@@ -139,7 +123,6 @@ _start:
 	o_console result_msg, result_msg_len
 	o_console bufferX, bufX_len
 	o_console newline, 1
-
 
 	exit
 
@@ -158,25 +141,6 @@ do_function:
 	; !(x1+x2)
 	mov esi, [arg(1)]
 	mov al, byte [esi]
-	
-	mov byte [temp], al
-	o_console x1_msg, x1_msg_len
-	add byte [temp], 0x30
-	o_console temp, 1
-	o_console newline, 1
-
-
-	mov esi, [arg(2)]
-	mov bl, byte [esi]
-	
-	mov byte [temp], bl
-	o_console x2_msg, x2_msg_len
-	add byte [temp], 0x30
-	o_console temp, 1
-	o_console newline, 1
-
-	mov esi, [arg(1)]
-	mov al, byte [esi]
 	mov esi, [arg(2)]
 	mov bl, byte [esi]
 
@@ -184,33 +148,7 @@ do_function:
 	invert eax
 	push ax
 
-	mov byte [temp], al
-	o_console r1_msg, r1_msg_len
-	add byte [temp], 0x30
-	o_console temp, 1
-	o_console newline, 1
-
-
 	; ; x3*x4
-	mov esi, [arg(3)]
-	mov al, byte [esi]
-
-	mov byte [temp], al
-	o_console x3_msg, x3_msg_len
-	add byte [temp], 0x30
-	o_console temp, 1
-	o_console newline, 1
-
-	mov esi, [arg(4)]
-	mov bl, byte [esi]
-	
-	mov byte [temp], bl
-	o_console x4_msg, x4_msg_len
-	add byte [temp], 0x30
-	o_console temp, 1
-	o_console newline, 1
-
-
 	mov esi, [arg(3)]
 	mov al, byte [esi]
 	mov esi, [arg(4)]
@@ -219,26 +157,11 @@ do_function:
 	and al, bl
 	push ax
 
-	mov byte [temp], al
-	o_console r2_msg, r2_msg_len
-	add byte [temp], 0x30
-	o_console temp, 1
-	o_console newline, 1
-
-	; ; $1 + $2
+	; $1 + $2
 	pop ax
 	pop bx
 	or al, bl
-	push ax
-
-	mov byte [temp], al
-	o_console F_msg, F_msg_len
-	add byte [temp], 0x30
-	o_console temp, 1
-	o_console newline, 1
-
-	pop ax
-
+	
 	mov esp, ebp
 	pop ebp
 	ret
@@ -378,6 +301,8 @@ from_hex_to_bin:
 
 
 z_func:
+
+	o_console F_msg, F_msg_len
 
 	buffer_to_acsii bufferX, bufX_len
 
