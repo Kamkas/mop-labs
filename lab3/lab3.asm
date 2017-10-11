@@ -42,6 +42,14 @@ _start:
 
 	pcall1 get_rows_and_cols, buffer
 
+	cmp byte [rows], byte [cols]
+	jne .quit
+	je .cont
+
+	.quit:
+		exit
+
+	.cont:
 	movzx ecx, byte [rows]
 	pcall2 check_for_refl, buffer, ecx
 	

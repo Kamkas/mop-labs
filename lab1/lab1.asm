@@ -1,49 +1,38 @@
+EXTERN itoa
+
 section .data
 
 	newline:	db		nl
-	
-	X: 			db 		"00001011010000010111" ; 46103
+	X: 			db 		"00000000000000001001" ; 46103
 	X_len:		equ		$-X
-	Y: 			db 		"10101111100101110110" ; 719222
+	Y: 			db 		"00000000000000001110" ; 719223
 	Y_len:		equ		$-Y
 
 	msg1:			db		"Enter 1st(X) binary number (20 char) >> "
 	msg1_len		equ		$-msg1
-
 	msg2:			db		"Enter 2nd(Y) binary number (20 char) >> "
 	msg2_len		equ		$-msg2
-
 	ovr_msg:		db		"Overflow bits(from 20 to 28 digits)",nl
 	ovr_msg_len		equ		$-ovr_msg
-
 	result_msg:		db		"Result bits(20..0 digits)",nl
 	result_msg_len	equ		$-result_msg
-
 	bool_func:		db		"Result of F(x1, x2, x3, x4) >> "
 	bool_func_len	equ		$-bool_func
-
 	z1_msg:			db 		"z19 &= z16", nl
 	z1_msg_len	    equ		$-z1_msg
-
 	z2_msg:			db 		"z15 |= z16", nl
 	z2_msg_len	    equ		$-z2_msg
-
 	z3_msg:			db 		"z11 = !z10", nl
 	z3_msg_len	    equ		$-z3_msg
-
 	final_res_msg:	db		"Final result ->  "
 	final_res_msg_len 		equ		$-final_res_msg
-
 	fst_msg:		db		"Z = Y-X*8", nl
 	fst_msg_len		equ		$-fst_msg
-
 	scnd_msg:		db		"Z = X*8+Y*8", nl
 	scnd_msg_len	equ		$-scnd_msg
-
-	bin_func_msg			db		"F_27 = !x1x3|!x1x2|x1x3x4|!x1x2x3|!x1!x2", nl
+	bin_func_msg:			db		"F_27 = !x1x3|!x1x2|x1x3x4|!x1x2x3|!x1!x2", nl
 	bin_func_msg_len		equ 	$-bin_func_msg
-
-	F_msg			db		"Z = "
+	F_msg:			db		"Z = "
 	F_msg_len		equ 	$-F_msg
 
 section .bss
@@ -53,12 +42,32 @@ section .bss
 
 	bufferX: 	resb	20
 	bufX_len:	equ		$-bufferX
-	
 	bufferY: 	resb	20
 	bufY_len:	equ		$-bufferY
 
 	allocate_array_byte bul_f, 1
 	allocate_array_byte temp, 1
+
+	tm_s: 		resd 	1
+	tm_us: 		resd 	1
+
+	struc t_start
+		.tv_sec: 	resd	1				;/* seconds */
+    	.tv_usec:  	resd	1				;/* microseconds */
+	endstruc
+
+	struc t_end
+		.tv_sec: 	resd	1				;/* seconds */
+    	.tv_usec:  	resd	1				;/* microseconds */
+	endstruc
+
+	struc t_interval
+		.tv_sec: 	resd	1				;/* seconds */
+    	.tv_usec:  	resd	1				;/* microseconds */
+	endstruc
+
+	int_string: 		resb	6
+	int_string_len:		equ		$-int_string
 
 	x1_index:			equ		bufferX + bufX_len - 1
 	x2_index:			equ		bufferX + bufX_len - 2
@@ -75,29 +84,23 @@ section .text
 	global _start
 
 _start:
-	
+
+	gettimeofday t_start, tm_s, tm_us
+
 	o_console msg1, msg1_len
 	o_console X, X_len
 	o_console newline, 1
-	; i_console bufferX, bufX_len
 	fill_buffer X, bufferX, bufX_len
-
 
 	o_console msg2, msg2_len
 	o_console Y, Y_len
 	o_console newline, 1
-	; i_console bufferY, bufY_len
 	fill_buffer Y, bufferY, bufY_len
 
 	o_console bin_func_msg, bin_func_msg_len
 	pcall4 do_function, x1_index, x2_index, x3_index, x4_index
 
 	mov byte [bul_f], al
-	add byte [bul_f], 0x30
-
-	o_console bool_func, bool_func_len
-	o_console bul_f, 1
-	o_console newline, 1
 
 	cmp eax, true
 	je fc_func
@@ -110,11 +113,20 @@ _start:
 	pcall3 from_hex_to_bin, eax, bufferX, bufX_len
 
 	buffer_to_acsii bufferOvflw, 7
-	; buffer_to_acsii bufferX, bufX_len
+	buffer_to_acsii bufferX, bufX_len
 	buffer_to_acsii bul_f, 1
 	
-	jmp z_func
+	o_console result_msg, result_msg_len
+	o_console bufferX, bufX_len
+	o_console newline, 1
+
+	; jmp z_func
 	.back_z:
+
+	o_console bool_func, bool_func_len
+	o_console bul_f, 1
+	o_console newline, 1
+
 
 	o_console ovr_msg, ovr_msg_len
 	o_console bufferOvflw, bufOvflw_len
@@ -123,6 +135,10 @@ _start:
 	o_console result_msg, result_msg_len
 	o_console bufferX, bufX_len
 	o_console newline, 1
+
+	gettimeofday t_end, tm_s, tm_us
+
+	get_interval t_start, t_end, t_interval
 
 	exit
 
@@ -184,12 +200,13 @@ fc_func:
 
 	cmp eax, edx
 	ja .negtive
-
 	sub edx, eax
-	mov eax, edx
-	
+
 	.negtive:
 		sub eax, edx
+	
+	mov eax, edx
+	
 	jmp _start.back
 
 

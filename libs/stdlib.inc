@@ -18,27 +18,6 @@
 	%define O_RDWR			2
 	%define O_APPEND		2001q
 
-	struc STAT
-	    .st_dev:        resd 1
-	    .st_ino:        resd 1   
-	    .st_mode:       resw 1   
-	    .st_nlink:      resw 1   
-	    .st_uid:        resw 1   
-	    .st_gid:        resw 1   
-	    .st_rdev:       resd 1       
-	    .st_size:       resd 1   
-	    .st_blksize:    resd 1   
-	    .st_blocks:     resd 1   
-	    .st_atime:      resd 1   
-	    .st_atime_nsec: resd 1   
-	    .st_mtime:      resd 1   
-	    .st_mtime_nsec: resd 1
-	    .st_ctime:      resd 1   
-	    .st_ctime_nsec: resd 1   
-	    .unused4:       resd 1   
-	    .unused5:       resd 1   
-	endstruc
-
 	; io codes
 	%define stdin         0
 	%define stdout        1
@@ -53,6 +32,7 @@
 	%define false		0
 	%define nl			0xA
 	%define spc			0x20
+	
 	; %define get_index(array, i, j, len)	(array + len * i + j)
 	%define sdots		0xB0
 	%define mdots		0xB1
